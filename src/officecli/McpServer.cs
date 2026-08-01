@@ -536,11 +536,19 @@ Delivery gate (before reporting a document finished — any failure = fix and re
     {
         w.WriteStartObject();
         w.WriteString("name", "officecli");
-        // Append a compact always-on skill-trigger summary so the agent is
-        // prompted to load the right skill without the full ~1.2k of routing
-        // descriptions resident in context. Detail stays lazy behind load_skill.
-        w.WriteString("description", ToolDescription + "\n\n" + McpHelpStrategy + "\n"
-            + OfficeCli.Core.SkillInstaller.BuildSkillTriggerSummary());
+        // Prepend the compact always-on skill-trigger summary (not append) so
+        // the agent is prompted to load the right skill without the full
+        // ~1.2k of routing descriptions resident in context. Detail stays
+        // lazy behind load_skill. Position matters: MCP clients that search
+        // tool descriptions (e.g. a ToolSearch-style discovery pass) truncate
+        // long descriptions to a fixed prefix before matching — this tool's
+        // description runs past that cap once the per-format skill catalog is
+        // included, so a trigger word placed at the tail (as it previously
+        // was, appended after ToolDescription+McpHelpStrategy) fell outside
+        // the searchable window and was undiscoverable by that keyword. Head
+        // placement keeps every trigger, including hwpx, inside the prefix.
+        w.WriteString("description", OfficeCli.Core.SkillInstaller.BuildSkillTriggerSummary()
+            + "\n\n" + ToolDescription + "\n\n" + McpHelpStrategy);
         w.WriteStartObject("inputSchema");
         w.WriteString("type", "object");
         w.WriteStartObject("properties");
