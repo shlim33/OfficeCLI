@@ -131,6 +131,12 @@ internal static class WarningContext
 [JsonSerializable(typeof(decimal))]
 [JsonSerializable(typeof(double))]
 [JsonSerializable(typeof(string))]
+// Plugin format-handlers deserialize DocumentNode.Format (Dictionary<string, object?>)
+// from raw JSON, so its values are JsonElement instances — without this hook the
+// source-generated serializer rejects the envelope ("JsonTypeInfo metadata for type
+// 'System.Text.Json.JsonElement' was not provided by ... AppJsonContext") and every
+// plugin-format `get/query/validate --json` dies with internal_error.
+[JsonSerializable(typeof(JsonElement))]
 internal partial class AppJsonContext : JsonSerializerContext;
 
 internal static class OutputFormatter
