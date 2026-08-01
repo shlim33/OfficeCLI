@@ -54,6 +54,7 @@ internal static class SkillInstaller
         ["data-dashboard"]  = "officecli-data-dashboard",
         ["financial-model"] = "officecli-financial-model",
         ["word-form"]       = "officecli-word-form",
+        ["hwpx"]            = "officecli-hwpx",
     };
 
     // One-line trigger per skill — a compact, always-on discovery lure injected
@@ -75,6 +76,7 @@ internal static class SkillInstaller
         ["academic-paper"]  = "academic papers / research reports",
         ["data-dashboard"]  = "data dashboards",
         ["financial-model"] = "financial models / projections",
+        ["hwpx"]            = "Korean HWPX documents (.hwpx) / 한글 문서",
     };
 
     /// <summary>
