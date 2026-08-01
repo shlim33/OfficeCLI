@@ -408,6 +408,16 @@ static partial class CommandBuilder
                         }
                     }
                 }
+                else if (handler is OfficeCli.Core.Plugins.FormatHandlerProxy screenshotProxy)
+                {
+                    // Format-handler plugins (e.g. hwpx) only speak html, not the
+                    // native/direct-PNG paths above. Mirror the `view html` proxy
+                    // branch (:161-162), but apply the same single-page default as
+                    // the docx/pptx branches (CONSISTENCY(screenshot-default-first-page)) —
+                    // an explicit --page still narrows.
+                    var effectiveFilter = string.IsNullOrEmpty(pageFilter) ? "1" : pageFilter;
+                    html = screenshotProxy.ViewAsHtml(int.TryParse(effectiveFilter, out var proxyPage) ? proxyPage : (int?)null);
+                }
 
                 // A renderer that paints its own pixels supplies them directly, sitting
                 // between the native backend (which wins when it ran) and the HTML→headless

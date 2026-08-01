@@ -1723,6 +1723,16 @@ public class ResidentServer : IDisposable
                 if (directPng == null) html = CommandBuilder.RenderViaRegistry(wordShotHandler, "docx",
                     new OfficeCli.Core.Rendering.RenderOptions { PageFilter = effectiveFilter })!;
             }
+            else if (_handler is OfficeCli.Core.Plugins.FormatHandlerProxy screenshotShotProxy)
+            {
+                // Format-handler plugins (e.g. hwpx) only speak html, not the
+                // native/direct-PNG paths above — mirrors the CommandBuilder.View.cs
+                // screenshot proxy branch (this file duplicates that command's logic
+                // for the resident-server fast path, including its own pre-existing
+                // proxy branch on the html mode above at :1509-1510).
+                var effectiveFilter = string.IsNullOrEmpty(pageFilter) ? "1" : pageFilter;
+                html = screenshotShotProxy.ViewAsHtml(int.TryParse(effectiveFilter, out var proxyShotPage) ? proxyShotPage : (int?)null);
+            }
             if (html == null && directPng == null)
             {
                 Console.Error.WriteLine("Screenshot mode is only supported for .pptx, .xlsx, and .docx files.");
