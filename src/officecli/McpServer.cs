@@ -291,6 +291,16 @@ public static class McpServer
         // here from the same SkillInstaller the CLI uses.
         if (argv[0] is "load_skill" or "skill" or "skills")
             return (new[] { new McpContent("text", Text: HandleSkillCommand(argv)) }, false);
+        // A model sometimes invents a view MODE as a verb ("screenshot report.hwpx --page 1"):
+        // System.CommandLine's did-you-mean (open/move) is useless there and the model gives
+        // up on the capability entirely. Return the exact corrected shape instead — MCP layer
+        // only, terminal CLI surface unchanged.
+        if (argv[0] is "text" or "annotated" or "outline" or "stats" or "issues"
+            or "html" or "svg" or "screenshot" or "pdf" or "forms")
+            return (new[] { new McpContent("text", Text:
+                $"'{argv[0]}' is a view mode, not a command. Use: view <file> {argv[0]} [options]"
+                + (argv[0] == "screenshot" ? " — e.g. view report.hwpx screenshot -o out.png (add --page N for a specific page)." : ".")) },
+                true);
         if (IsScreenshot(argv))
             return (RunScreenshotArgv(argv), false);
         return SurfaceCliResult(RunCliRaw(argv));
