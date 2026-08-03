@@ -67,6 +67,10 @@ static partial class CommandBuilder
                             initialHtml = RenderViaRegistry(handler, "xlsx", new OfficeCli.Core.Rendering.RenderOptions());
                         else if (handler is OfficeCli.Handlers.WordHandler)
                             initialHtml = RenderViaRegistry(handler, "docx", new OfficeCli.Core.Rendering.RenderOptions());
+                        // format-handler 플러그인(hwpx 등) — 프록시가 html 을 이미 제공한다.
+                        // 이 갈래가 없으면 플러그인 포맷은 첫 화면이 "Waiting for first update" 로 남는다.
+                        else if (handler is OfficeCli.Core.Plugins.FormatHandlerProxy proxy)
+                            initialHtml = proxy.ViewAsHtml();
                     }
                     catch (Exception ex)
                     {

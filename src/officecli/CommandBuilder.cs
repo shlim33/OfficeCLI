@@ -1972,6 +1972,13 @@ static partial class CommandBuilder
             WatchNotifier.NotifyIfWatching(filePath, new WatchMessage { Action = "full", FullHtml = word.ViewAsHtml(), ScrollTo = scrollTo });
             return;
         }
+        if (handler is OfficeCli.Core.Plugins.FormatHandlerProxy proxy)
+        {
+            var proxyHtml = proxy.ViewAsHtml();
+            if (proxyHtml != null)
+                WatchNotifier.NotifyIfWatching(filePath, new WatchMessage { Action = "full", FullHtml = proxyHtml });
+            return;
+        }
         if (handler is not OfficeCli.Handlers.PowerPointHandler ppt) return;
         var slideNum = WatchMessage.ExtractSlideNum(changedPath);
         if (slideNum > 0)
@@ -2005,6 +2012,13 @@ static partial class CommandBuilder
             var pageCount = System.Text.RegularExpressions.Regex.Matches(html, @"data-page=""\d+""").Count;
             var scrollTo = pageCount > 0 ? $".page[data-page=\"{pageCount}\"]" : null;
             WatchNotifier.NotifyIfWatching(filePath, new WatchMessage { Action = "full", FullHtml = html, ScrollTo = scrollTo });
+            return;
+        }
+        if (handler is OfficeCli.Core.Plugins.FormatHandlerProxy proxy)
+        {
+            var proxyHtml = proxy.ViewAsHtml();
+            if (proxyHtml != null)
+                WatchNotifier.NotifyIfWatching(filePath, new WatchMessage { Action = "full", FullHtml = proxyHtml });
             return;
         }
         if (handler is not OfficeCli.Handlers.PowerPointHandler ppt) return;
