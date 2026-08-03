@@ -35,6 +35,23 @@ internal class WatchServer : IDisposable
     private string _currentHtml = "";
     private int _version = 0;
     private bool _disposed;
+    // Marker ownership. Only the instance that actually created the marker file
+    // may delete it. Without this flag a *rejected* duplicate — RunAsync throws
+    // "Another watch process is already running" BEFORE WriteMarker ever runs,
+    // and `using var watch = ...` in CommandBuilder.Watch.cs then disposes it,
+    // which runs StopAsync -> DeleteMarker — would erase the *incumbent's*
+    // marker. The incumbent keeps serving, but WatchNotifier/IsWatching now see
+    // no marker, so every later edit notifies nobody: the browser stays
+    // connected and the preview never updates again.
+    private bool _markerWritten;
+    // Pipe-socket ownership — same hazard as _markerWritten, second file. Both
+    // the marker and $TMPDIR/CoreFxPipe_<pipeName> are derived from the watched
+    // path, so a rejected duplicate names the *incumbent's* files. StopAsync
+    // deletes the socket (BUG-BT-003 stale-file cleanup) even when this instance
+    // never opened a pipe server, which unlinks the live listener's socket: the
+    // incumbent still serves HTTP/SSE, but NotifyWatch can no longer connect, so
+    // edits reach nobody. Only the instance that created the socket may delete it.
+    private bool _pipeSocketCreated;
     private DateTime _lastActivityTime = DateTime.UtcNow;
     private readonly TimeSpan _idleTimeout;
 
@@ -290,18 +307,25 @@ internal class WatchServer : IDisposable
                 opts.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite; // 0600
             using var fs = new FileStream(markerPath, opts);
             fs.Write(bytes);
+            // Claim ownership only after the write actually succeeded. A skipped
+            // marker (squatter at the path, IO error) leaves the flag false, so
+            // this instance will not delete a file it does not own.
+            _markerWritten = true;
         }
         catch { /* best-effort; IsWatching just reports false if marker absent */ }
     }
 
     private void DeleteMarker()
     {
+        // Never delete a marker we did not write — see _markerWritten.
+        if (!_markerWritten) return;
         try
         {
             var markerPath = GetWatchMarkerPath(_filePath);
             if (File.Exists(markerPath)) File.Delete(markerPath);
         }
         catch { /* best-effort cleanup */ }
+        _markerWritten = false;
     }
 
     public async Task RunAsync(CancellationToken externalToken = default)
@@ -498,7 +522,10 @@ internal class WatchServer : IDisposable
         //    do this on its own (BUG-BT-003 — fuzzer found 302 stale
         //    files). Run here in StopAsync rather than Dispose so it
         //    also works when the process exits via SIGTERM signal path.
-        if (!OperatingSystem.IsWindows())
+        //    Gated on _pipeSocketCreated: an instance that never opened a
+        //    pipe server would otherwise unlink the *incumbent's* socket,
+        //    since the name is derived from the watched path.
+        if (!OperatingSystem.IsWindows() && _pipeSocketCreated)
         {
             try
             {
@@ -548,6 +575,9 @@ internal class WatchServer : IDisposable
                 System.IO.Pipes.NamedPipeServerStream.MaxAllowedServerInstances,
                 System.IO.Pipes.PipeTransmissionMode.Byte,
                 System.IO.Pipes.PipeOptions.Asynchronous);
+            // The socket file at $TMPDIR/CoreFxPipe_<pipeName> exists from here
+            // on — this instance owns it and may clean it up (see the field).
+            _pipeSocketCreated = true;
             try
             {
                 await server.WaitForConnectionAsync(token);
