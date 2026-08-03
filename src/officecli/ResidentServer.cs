@@ -1411,6 +1411,13 @@ public class ResidentServer : IDisposable
             WatchNotifier.NotifyIfWatching(_filePath, new WatchMessage { Action = "full", FullHtml = CommandBuilder.RenderViaRegistry(word, "docx", new OfficeCli.Core.Rendering.RenderOptions()), ScrollTo = scrollTo });
             return;
         }
+        if (_handler is OfficeCli.Core.Plugins.FormatHandlerProxy proxy)
+        {
+            var proxyHtml = proxy.ViewAsHtml();
+            if (proxyHtml != null)
+                WatchNotifier.NotifyIfWatching(_filePath, new WatchMessage { Action = "full", FullHtml = proxyHtml });
+            return;
+        }
         if (_handler is not OfficeCli.Handlers.PowerPointHandler ppt) return;
         var slideNum = WatchMessage.ExtractSlideNum(changedPath);
         if (slideNum > 0)
@@ -1440,6 +1447,13 @@ public class ResidentServer : IDisposable
         if (_handler is OfficeCli.Handlers.ExcelHandler excel)
         {
             WatchNotifier.NotifyIfWatching(_filePath, new WatchMessage { Action = "full", FullHtml = CommandBuilder.RenderViaRegistry(excel, "xlsx", new OfficeCli.Core.Rendering.RenderOptions()) });
+            return;
+        }
+        if (_handler is OfficeCli.Core.Plugins.FormatHandlerProxy proxy)
+        {
+            var proxyHtml = proxy.ViewAsHtml();
+            if (proxyHtml != null)
+                WatchNotifier.NotifyIfWatching(_filePath, new WatchMessage { Action = "full", FullHtml = proxyHtml });
             return;
         }
         if (_handler is not OfficeCli.Handlers.PowerPointHandler ppt) return;
@@ -1472,6 +1486,8 @@ public class ResidentServer : IDisposable
             fullHtml = CommandBuilder.RenderViaRegistry(excel, "xlsx", new OfficeCli.Core.Rendering.RenderOptions());
         else if (_handler is OfficeCli.Handlers.WordHandler word)
             fullHtml = CommandBuilder.RenderViaRegistry(word, "docx", new OfficeCli.Core.Rendering.RenderOptions());
+        else if (_handler is OfficeCli.Core.Plugins.FormatHandlerProxy proxy)
+            fullHtml = proxy.ViewAsHtml();
         if (fullHtml != null)
             WatchNotifier.NotifyIfWatching(_filePath, new WatchMessage { Action = "full", FullHtml = fullHtml });
     }
