@@ -12,6 +12,17 @@
 (function() {
     var es = window._watchEs;
 
+    // Same base-path contract as Layer 1 (see watch-sse-core.js) — the embedder
+    // sets window.__watchBase before either layer runs; '' is standalone.
+    var BASE = (window.__watchBase || '');
+    // Read-only embedding: when the host in front of us exposes no write route
+    // (e.g. a proxy that whitelists GET / and GET /events only), every POST
+    // below would be a guaranteed 404 on each click — noise in the console and
+    // in the host's logs, with no possible effect. Embedders declare that by
+    // setting window.__watchReadOnly = true; standalone officecli leaves it
+    // undefined and behaves exactly as before.
+    var READONLY = !!window.__watchReadOnly;
+
     // ===== Selection sync =====
     // Single source of truth: server's currentSelection. We keep a local
     // mirror updated by the server's SSE 'selection-update' broadcasts so
@@ -176,7 +187,8 @@
     }
 
     function postSelection(paths) {
-        fetch('/api/selection', {
+        if (READONLY) return;
+        fetch(BASE + '/api/selection', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ paths: paths })
@@ -679,13 +691,14 @@
         var dRows = Math.round(dy / Math.max(avgRowH, 1));
         var dCols = Math.round(dx / Math.max(avgColW, 1));
         if (dRows === 0 && dCols === 0) return;
+        if (READONLY) return;
         // Read current anchor from data-from-col/data-from-row on the overlay div
         var overlay = cd.el.closest('[data-from-col]') || cd.el.parentElement && cd.el.parentElement.closest('[data-from-col]');
         var currentCol = overlay ? parseInt(overlay.getAttribute('data-from-col'), 10) || 0 : 0;
         var currentRow = overlay ? parseInt(overlay.getAttribute('data-from-row'), 10) || 0 : 0;
         var newRow = Math.max(0, currentRow + dRows);
         var newCol = Math.max(0, currentCol + dCols);
-        fetch('/api/send', {
+        fetch(BASE + '/api/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ path: cd.path, props: {
@@ -699,6 +712,7 @@
     // ===== Double-click inline editing (Excel-style) =====
     var _editingCell = null; // currently editing td element
     document.addEventListener('dblclick', function(e) {
+        if (READONLY) return; // no write route — do not open an editor that cannot commit
         var td = e.target.closest('td[data-path]');
         if (!td) return;
         var path = td.getAttribute('data-path');
@@ -738,8 +752,9 @@
             input.remove();
             _editingCell = null;
             if (newValue === editText) return; // no change
+            if (READONLY) return;
             // POST edit to watch server
-            fetch('/api/send', {
+            fetch(BASE + '/api/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path: path, prop: 'text', value: newValue })

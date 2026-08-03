@@ -8,7 +8,15 @@
 //   - Layer 2 sets window._watchReapplyHook = reapplyDecorations
 
 (function() {
-    var es = new EventSource('/events');
+    // Base-path awareness. When the watch UI is served through a reverse proxy
+    // that mounts it under a path prefix, every URL this client builds must
+    // carry that prefix — root-absolute URLs resolve against the proxy origin
+    // and miss the tunnel. The embedder declares the prefix by setting
+    // window.__watchBase (e.g. "/previews/abc") in a script that runs before
+    // this one. Default '' keeps standalone officecli byte-identical to before:
+    // BASE + '/events' === '/events', BASE + '/' === '/'.
+    var BASE = (window.__watchBase || '');
+    var es = new EventSource(BASE + '/events');
     window._watchEs = es;
 
     var _scrollTimer = null;
@@ -38,7 +46,7 @@
     }
 
     function _replaceDocumentBody(msg) {
-        fetch('/').then(function(r) { return r.text(); }).then(function(html) {
+        fetch(BASE + '/').then(function(r) { return r.text(); }).then(function(html) {
             var doc = new DOMParser().parseFromString(html, 'text/html');
             var oldStyles = document.querySelectorAll('head style');
             var newStyles = doc.querySelectorAll('head style');
@@ -144,7 +152,7 @@
                 if (p) visiblePageNum = parseInt(p.getAttribute('data-page')) || 0;
             }
         });
-        fetch('/').then(function(r) { return r.text(); }).then(function(html) {
+        fetch(BASE + '/').then(function(r) { return r.text(); }).then(function(html) {
             var doc = new DOMParser().parseFromString(html, 'text/html');
             // Update styles
             var oldStyles = document.querySelectorAll('head style');
