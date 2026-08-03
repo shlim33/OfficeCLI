@@ -2631,10 +2631,20 @@ internal class WatchServer : IDisposable
 
             var newPath = Path.GetFullPath(requested);
             var fmt = FormatOf(newPath);
-            if (fmt is not ("pptx" or "docx" or "xlsx"))
+            // Built-in three, OR a format-handler plugin format (e.g. hwpx) — the
+            // render below already goes through the plugin proxy (spawns `officecli
+            // view <file> html`, which resolves via DocumentHandlerFactory same as
+            // any other open). Checking PluginRegistry does not violate
+            // CONSISTENCY(watch-isolation): it never opens newPath itself, only
+            // probes an installed plugin executable's own --info manifest.
+            if (fmt is not ("pptx" or "docx" or "xlsx")
+                && OfficeCli.Core.Plugins.PluginRegistry.FindFor(OfficeCli.Core.Plugins.PluginKind.FormatHandler, fmt) is null)
             {
-                await WriteJsonResponseAsync(stream, 400, "Bad Request",
-                    "{\"error\":\"unsupported file type — expected .pptx, .docx or .xlsx\"}", token);
+                var sb400 = new StringBuilder("{\"error\":");
+                AppendJsonString(sb400, $"unsupported file type: .{fmt} — expected .pptx, .docx, .xlsx, "
+                    + "or a format handled by an installed plugin (run `officecli plugins list`)");
+                sb400.Append('}');
+                await WriteJsonResponseAsync(stream, 400, "Bad Request", sb400.ToString(), token);
                 return;
             }
             if (!File.Exists(newPath))
