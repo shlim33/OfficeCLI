@@ -605,6 +605,7 @@
     // Expose drag-active flag so SSE full-update can defer body replacement
     window._isDragging = false;
     document.addEventListener('mousedown', function(e) {
+        if (READONLY) return; // no write route — dragging would paint and then snap back
         if (e.button !== 0) return;
         var chart = e.target.closest('.chart-container[data-path]');
         if (!chart) return;
@@ -831,6 +832,10 @@
         if (e.target.closest('[data-path]')) return; // non-cell data-path (PPT/Word)
         // Ignore mousedown inside scrollbars / sidebar / interactive UI
         if (e.target.closest('.sidebar, .sidebar-toggle, .page-counter, button, input, a')) return;
+        // no write route — the marquee would paint and then vanish on release
+        // doing nothing (postSelection is itself gated, and rubber-band commit
+        // never applies the hit-test locally, only via the server round-trip)
+        if (READONLY) return;
         _rubber = { startX: e.clientX, startY: e.clientY, shift: e.shiftKey, div: null };
     }, true);
 
