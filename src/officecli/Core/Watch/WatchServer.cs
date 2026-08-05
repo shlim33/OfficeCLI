@@ -145,13 +145,46 @@ internal class WatchServer : IDisposable
         return TimeSpan.FromMinutes(5);
     }
 
+    // Bind address is configurable via OFFICECLI_WATCH_BIND so a network-mode
+    // deployment (xyrend's officecli-net: watch server and caller live in
+    // separate container network namespaces, connected only by a docker
+    // bridge — see packages/hwpx/docker/entrypoint-net.sh in the xyren-studio
+    // consumer repo) can expose the per-document dynamic port beyond loopback.
+    // Unset/blank preserves the upstream default (IPAddress.Loopback) — this
+    // is a pure opt-in, bare-host callers are byte-for-byte unaffected.
+    // "0.0.0.0" maps to IPAddress.Any; any other value is parsed with
+    // IPAddress.TryParse and a malformed value fails the constructor loudly
+    // (no silent fallback to Loopback, which would look like a security
+    // tightening but is actually a misconfiguration masking itself).
+    //
+    // This does not weaken IsHostAllowed/IsOriginAllowed (Host/Origin header
+    // checks, :2114/:2128 below) — those inspect header *names*, not the
+    // socket the connection arrived on, so they keep rejecting non-loopback
+    // Host/Origin values regardless of bind address. The socket bind was a
+    // second, independent layer (unreachable from outside the process's own
+    // network namespace); opting into 0.0.0.0 removes only that layer and
+    // relies on the header checks plus network-level isolation (an internal-
+    // only docker network whose only other member is the trusted caller).
+    private static IPAddress ResolveBindAddress()
+    {
+        var raw = Environment.GetEnvironmentVariable("OFFICECLI_WATCH_BIND");
+        if (string.IsNullOrWhiteSpace(raw))
+            return IPAddress.Loopback;
+        if (raw == "0.0.0.0")
+            return IPAddress.Any;
+        if (IPAddress.TryParse(raw, out var parsed))
+            return parsed;
+        throw new ArgumentException(
+            $"OFFICECLI_WATCH_BIND={raw} is not a valid IP address (expected \"0.0.0.0\", a literal IP, or unset for the loopback default).");
+    }
+
     public WatchServer(string filePath, int port, TimeSpan? idleTimeout = null, string? initialHtml = null)
     {
         _filePath = Path.GetFullPath(filePath);
         _pipeName = GetWatchPipeName(_filePath);
         _port = port;
         _idleTimeout = idleTimeout ?? ResolveIdleTimeout();
-        _tcpListener = new TcpListener(IPAddress.Loopback, _port);
+        _tcpListener = new TcpListener(ResolveBindAddress(), _port);
         if (!string.IsNullOrEmpty(initialHtml))
             _currentHtml = initialHtml;
     }
