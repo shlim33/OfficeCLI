@@ -344,7 +344,30 @@ public static class McpServer
                     .Select(e => e.ValueKind == JsonValueKind.String ? (e.GetString() ?? "") : e.GetRawText())
                     .ToArray();
         else if (c.ValueKind == JsonValueKind.String)
-            argv = Tokenize(c.GetString() ?? "");
+        {
+            var s = c.GetString() ?? "";
+            // A model sometimes sends the argv ARRAY serialized as a string
+            // ("[\"view\", \"a.hwpx\", \"outline\"]"). Tokenizing that yields a
+            // '[view,' token and an unrelated did-you-mean error (2026-08-13 live
+            // measurement). If the string parses as a JSON string array, honour it.
+            string[]? fromJson = null;
+            var t = s.TrimStart();
+            if (t.StartsWith("[", StringComparison.Ordinal))
+            {
+                // JsonDocument, not JsonSerializer — this app disables
+                // reflection-based serialization (source-gen only, AppJsonContext).
+                try
+                {
+                    using var parsed = JsonDocument.Parse(s);
+                    if (parsed.RootElement.ValueKind == JsonValueKind.Array)
+                        fromJson = parsed.RootElement.EnumerateArray()
+                            .Select(e => e.ValueKind == JsonValueKind.String ? (e.GetString() ?? "") : e.GetRawText())
+                            .ToArray();
+                }
+                catch (JsonException) { /* not a JSON array — tokenize as usual */ }
+            }
+            argv = fromJson ?? Tokenize(s);
+        }
         else
             // A non-string, non-array `command` (number, bool, object, null) is a
             // client mistake — fall through to the empty-argv friendly guidance
