@@ -282,6 +282,28 @@ public static class McpServer
 
     private static (IReadOnlyList<McpContent> Contents, bool IsError) ExecuteCommandLine(JsonElement args)
     {
+        // A model sometimes invents extra argument keys, splitting the command line into
+        // {"command":"view","file":"…","options":"outline"}. Only `command` exists, so the
+        // extras were silently dropped and the truncated command produced an unrelated
+        // usage error — after 2-3 of those the model concludes the format is unsupported
+        // and gives up (2026-08-13 live measurement). Reject loudly with the corrected
+        // shape instead so the first response already teaches the fix.
+        if (args.ValueKind == JsonValueKind.Object)
+        {
+            var extras = args.EnumerateObject()
+                .Select(p => p.Name)
+                .Where(n => n != "command" && !n.StartsWith("_", StringComparison.Ordinal))
+                .ToArray();
+            if (extras.Length > 0)
+                return (new[] { new McpContent("text", Text:
+                    $"Unknown argument key(s): {string.Join(", ", extras)}. This tool takes ONE "
+                    + "parameter, `command` — the full officecli command line as a single string "
+                    + "(or a pre-split argv array). Put the file path and every option inside it, "
+                    + "e.g. {\"command\": \"view /path/doc.hwpx outline\"} or "
+                    + "{\"command\": [\"set\", \"/path/doc.hwpx\", \"/section[1]/paragraph[1]\", "
+                    + "\"--prop\", \"fontColor=#FF0000\"]}.") },
+                    true);
+        }
         var argv = ExtractArgv(args);
         if (argv.Length == 0)
             throw new ArgumentException("Provide the officecli command line as `command`, e.g. "
