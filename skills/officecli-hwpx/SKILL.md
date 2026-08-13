@@ -8,18 +8,24 @@ description: "Use this skill any time a .hwpx file is involved -- Korean HWPX wo
 ## ⚠️ Discover-First Rule
 
 hwpx is a **format-handler plugin**, not one of officecli's three built-in formats — there is
-no `help hwpx`. FIRST run `officecli plugins info officecli-hwpx` BEFORE guessing an element
-path, a verb, or a prop name. That output is the schema (paths, verbs, props, vocabulary) and
-it is pinned to the installed plugin version — when it disagrees with this file, **the plugin
-is authoritative**.
+no `help hwpx`. If a usage sheet for this plugin (its paths/verbs/props vocabulary) is
+**already in your context**, use it and skip re-discovery. Otherwise run
+`officecli plugins info officecli-hwpx` BEFORE guessing an element path, a verb, or a prop
+name. That output is the schema (paths, verbs, props, vocabulary) and it is pinned to the
+installed plugin version — when it disagrees with this file or a sheet, **the plugin is
+authoritative**.
 
 ```bash
 officecli plugins info officecli-hwpx      # element/verb/prop vocabulary — run this first
 ```
 
-## Workflow
+## Workflow — scale it to the size of the edit
 
-Five steps. Every edit follows this shape.
+**Small edits (a few `set` calls on props/text): steps 1→3, then `save`. Stop there.**
+The screenshot audit exists to catch layout damage; a `fontColor`/`text` change cannot
+cause it, and running the full gate on a one-liner costs more than the edit itself.
+Structural work (rows/columns/merges, many paragraphs, images, or creating a document)
+runs all five steps.
 
 1. **Locate the file.** Check `input/manifest.json` for the target path — never assume a
    filename.
@@ -28,11 +34,12 @@ Five steps. Every edit follows this shape.
 3. **Edit incrementally.** `set` / `add` / `remove` / `move`, one call at a time — check the
    exit code before stacking another. A multi-step script that fails at step 3 cascades
    silently if you don't check.
-4. **Look at it.** `officecli view "$FILE" screenshot` — headless-rendered PNG comes back as an
-   image you can see. This is the only way to catch overflow, misalignment, or a broken table
-   that the structural verbs don't surface. Confirm the result before declaring the edit done.
-5. **Deliver to `output/`.** Save the finished file to the session's output side, not
-   `input/`.
+4. **Look at it** (structural work only). `officecli view "$FILE" screenshot` —
+   headless-rendered PNG comes back as an image you can see. This is the only way to catch
+   overflow, misalignment, or a broken table that the structural verbs don't surface.
+   Confirm the result before declaring the edit done.
+5. **Deliver.** In an agent session the staged input is picked up automatically when edited
+   in place; put **extra** output files under the session's `output/` side, not `input/`.
 
 ## Token-Savings Rule
 

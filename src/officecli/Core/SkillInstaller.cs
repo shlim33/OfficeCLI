@@ -95,7 +95,8 @@ internal static class SkillInstaller
         // FIRST … BEFORE … is what actually triggers a skill load + help-first.
         return "IMPORTANT — before you create/add/set/remove on any Office file, FIRST run the command "
             + "`load_skill <X>` for that file type (it loads the build guide and tells you to "
-            + "consult `help` for the schema). Pick X by need: "
+            + "consult `help` for the schema) — unless that format's guide/usage sheet is "
+            + "already in your context, in which case use it and do not re-load. Pick X by need: "
             + string.Join(" · ", parts)
             + ". (run `load_skill` with no name to list all skills.)";
     }

@@ -522,7 +522,7 @@ public static class McpServer
     private const string McpHelpStrategy = @"## Strategy
 Use view (outline/stats/issues/annotated) to understand the document first, then get/query to inspect details, then set/add/remove to modify.
 View modes: text, annotated, outline, stats, issues, html, svg (pptx only), screenshot, forms (docx only).
-Before delivering, pass the delivery gate (see the tool description): validate clean, view issues clean, then a visual audit via view mode=screenshot when layout matters (slide decks most of all). Whether the visual audit is mandatory is format-specific — run `load_skill <pptx|word|excel>` for the authoritative per-format gate.
+Scale verification to the edit: a few set calls on existing elements need only per-command response checks plus `save`. For created/restructured documents, pass the delivery gate (see the tool description): validate clean, view issues clean, then a visual audit via view mode=screenshot when layout matters (slide decks most of all). Whether the visual audit is mandatory is format-specific — run `load_skill <pptx|word|excel>` for the authoritative per-format gate.
 For 3+ mutations on the same file, use batch (one open/save cycle) instead of separate calls.
 Get output keys can be used directly as Set input keys (round-trip safe).
 Colors: FF0000, red, rgb(255,0,0), accent1. Sizes: 24pt. Positions: 2cm, 1in, 72pt, or raw EMU.
@@ -536,7 +536,7 @@ Pass an officecli command line in `command` (string or pre-split argv array); it
 
 Paths are 1-based: /slide[1]/shape[2], /body/p[3], /Sheet1/A1. Props are key=value strings.
 
-Delivery gate (before reporting a document finished — any failure = fix and re-check, do NOT deliver; validate passing is NOT delivery, 'looks like a real document' is):
+Delivery gate — SCALE IT TO THE EDIT. A small edit (a few set calls on props/text of existing elements) needs only: check each command's response, then `save`. Do NOT run validate/issues/screenshot for such edits — the gate below is for creating documents or structural work (adding/removing/moving elements, layout changes). If a usage sheet for the file's format is already in your context, skip load_skill and use the sheet. Full gate (before reporting a created/restructured document finished — any failure = fix and re-check, do NOT deliver; validate passing is NOT delivery, 'looks like a real document' is):
 1. Schema: `validate <file>` -> clean, no errors.
 2. Content: `view <file> issues` -> no overflow/format/structure issues; and scan `view <file> text` for leftover placeholders (xxxx, lorem/ipsum, <TODO>, {{...}}, $VAR$, empty ()/[]).
 3. Visual audit: `view <file> screenshot --page N` renders the page/slide and returns it as an image shown to you (or --grid auto for a whole-doc contact sheet). Judge it adversarially (assume problems exist) for overlap, text overflow, off-slide shapes, dark-on-dark, misalignment; fix positions/sizes (`set <file> <path> --prop x=.. --prop y=..`) and re-screenshot until right; if the screenshot can't render, say 'not visually verified'. Whether this audit is mandatory is format-specific (slide decks need it most — absolute-positioned shapes overlap invisibly to text modes), so run `load_skill pptx` (or word / excel) for the authoritative gate. The per-format SKILL.md, not this blurb, is the source of truth for what 'done' requires.
